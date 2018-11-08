@@ -26,7 +26,7 @@ namespace Messenger.Server
 
         public void startServer()
         {
-            bool work = true;
+            bool work = true; 
 
             while (work)
             {

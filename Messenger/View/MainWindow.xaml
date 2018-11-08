@@ -27,7 +27,7 @@
             <TextBlock Text="Server Name" VerticalAlignment="Bottom" Height="16"/>
             <TextBox Grid.Row="1" Text="5465654"/>
             <TextBlock Grid.Row="2" Text="Username" VerticalAlignment="Bottom" Height="16"/>
-            <TextBox Grid.Row="3" Text="dcbvf"/>
+            <TextBox Grid.Row="3" Text="{Binding Path=MyName}"/>
             <Button Grid.Row="4" Margin="0,5,0,3" Content="Connect" />
             <Button Grid.Row="5" Margin="0,2,0,5"  Content="Disconnect" />
             <ListBox Grid.Row="6">
