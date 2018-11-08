@@ -1,4 +1,4 @@
-﻿using Messenger.ViewModels;
+﻿using Messenger.Client.ViewModels;
 using System.Windows;
 
 namespace Messenger.View

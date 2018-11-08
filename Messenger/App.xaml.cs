@@ -8,7 +8,7 @@ namespace Messenger
         {
             base.OnStartup(e);
 
-            ViewModels.MainViewModel mainViewModel = new ViewModels.MainViewModel();
+            Client.ViewModels.MainViewModel mainViewModel = new Client.ViewModels.MainViewModel();
             View.MainWindow mainWindow = new View.MainWindow(mainViewModel);
             mainWindow.Show();
         }
