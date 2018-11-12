@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Messenger.Client
+namespace Messenger.Client.Commands
 {
     public class DelegateCommand : Command
     {

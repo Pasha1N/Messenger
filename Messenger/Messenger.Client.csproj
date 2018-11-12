@@ -58,9 +58,8 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Command\Command.cs" />
-    <Compile Include="Command\DelegateCommand.cs" />
-    <Compile Include="Utilities\EventINotifyPropertyChanged.cs" />
+    <Compile Include="Commands\Command.cs" />
+    <Compile Include="Commands\DelegateCommand.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />
     <Compile Include="View\MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
@@ -98,8 +97,16 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
-    <Folder Include="Models\" />
+    <ProjectReference Include="..\Messager.Utilities\Messenger.Utilities.csproj">
+      <Project>{df141d48-b5c8-4e69-a2c4-db64e5249026}</Project>
+      <Name>Messenger.Utilities</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Models\Messenger.Models.csproj">
+      <Project>{b62ecc2f-a62e-435e-a143-af0b6226da31}</Project>
+      <Name>Messenger.Models</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

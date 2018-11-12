@@ -1,8 +1,10 @@
-﻿using System;
+﻿using Messenger.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,21 +14,24 @@ namespace Messenger.Server
     public class Server
     {
         private readonly EventWaitHandle serverStartedEvent = new EventWaitHandle(false, EventResetMode.ManualReset, "{94BF7448-1BF3-4A4A-A309-B328E02689FC}");
-        private Socket serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         private IPAddress ipAddress = IPAddress.Loopback;
         private int port = 2020;
+        private TcpListener listener;
+        private ICollection<string> namesUsers = new List<string>();
 
         public Server()
         {
-            IPEndPoint ipEndPoint = new IPEndPoint(ipAddress, port);
-            serverSocket.Bind(ipEndPoint);
-            serverSocket.Listen(10);
+            {
+                // IPEndPoint ipEndPoint = new IPEndPoint(ipAddress, port);
+                //  serverSocket.Bind(ipEndPoint);
+                //   serverSocket.Listen(10);
+            }
             startServer();
         }
 
         public void startServer()
         {
-            bool work = true; 
+            bool work = true;
 
             while (work)
             {
@@ -40,6 +45,8 @@ namespace Messenger.Server
                     Console.WriteLine($" IpServer-> {ipAddress}");
                     Console.ResetColor();
                     work = false;
+                    listener = new TcpListener(ipAddress, port);
+                    listener.Start();
                 }
                 else
                 {
@@ -51,41 +58,119 @@ namespace Messenger.Server
             }
 
             serverStartedEvent.Set();
+            Connect();
+        } //+
+
+        public void Connect() //+
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine(" Waiting for new client...");
+            Console.ResetColor();
 
             while (true)
             {
-                Socket clientSocket = serverSocket.Accept();
-                Console.WriteLine($"Client connected {clientSocket.RemoteEndPoint}.");
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                TcpClient tcpClient = listener.AcceptTcpClient();
+                namesUsers.Add(tcpClient.Client.RemoteEndPoint.ToString());
+                Console.ResetColor();
 
+                {
+                    //ConsoleKeyInfo keyInfo = Console.ReadKey();
 
+                    //if (keyInfo.Key == ConsoleKey.Escape)
+                    //{
+                    //    Console.ForegroundColor = ConsoleColor.Green;
+                    //    listener.Stop();
+                    //    Console.WriteLine("Server Stopped");
+                    //    Console.ResetColor();
+                    //}
+                } //Server Stopped
 
+                Task.Factory.StartNew(foo =>
+                {
+                    BinaryFormatter formatter = new BinaryFormatter();
+                    User user;
 
+                    using (NetworkStream stream = tcpClient.GetStream())// information about the connected
+                    {
+                        user = (User)formatter.Deserialize(stream);
+                        Console.ForegroundColor = ConsoleColor.DarkGray;
+                        Console.Write(" User ");
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.Write(user.Username);
+                        Console.ForegroundColor = ConsoleColor.DarkGray;
+                        Console.WriteLine(" Connected.");
+                        Console.Write(" User ");
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.Write(user.Username);
+                        Console.ForegroundColor = ConsoleColor.DarkGray;
+                        Console.WriteLine(" was notified to update list of connected users.");
+                        Console.ResetColor();
+                    }
+
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine(" Waiting for new client...");
+                    Console.ResetColor();
+
+                    while (true)
+                    {
+                        try
+                        {
+                            using (NetworkStream stream = tcpClient.GetStream())
+                            {
+                                Message message = (Message)formatter.Deserialize(stream);
+                                Console.WriteLine($"Message-> {message.GetMessage}");
+                                Console.WriteLine($" SenderName->{message.Sender.Name}, SenderUsername->{message.Sender.Username}");
+                                Console.WriteLine($"RecipientName->{message.Recipient.Name}, RecipientUsername->{message.Recipient.Username}");
+                                SendMesssage(message);
+                            }
+                        }
+                        catch (InvalidOperationException)
+                        {
+                            break;
+                        }
+                    }
+                }, null, TaskCreationOptions.LongRunning);
+             
             }
         }
 
-        public bool Connect()
+        public void Disconnect(string Username)
         {
 
-            return true;
         }
 
-        public bool Disconnect()
+        public void SendMesssage(Message message)
+        {
+            foreach (string name in namesUsers)
+            {
+                if (message.Recipient.Name.Equals(name))
+                {
+                    Utilities.EndPoint endPoint = new Utilities.EndPoint();
+                    endPoint = endPoint.GetEndPoint(message.Recipient.Name);
+                    IPEndPoint iPEndPoint = new IPEndPoint(endPoint.IPAddress, endPoint.Port);
+                    TcpClient tcpClient = new TcpClient(iPEndPoint);
+                    BinaryFormatter formatter = new BinaryFormatter();
+
+                    using (NetworkStream stream = tcpClient.GetStream())
+                    {
+                        formatter.Serialize(stream, message);
+                    }
+                }
+            }
+        }
+
+        public void GiveTistTheUsers(string name)
         {
 
-            return true;
+
+
         }
 
-        public bool SendMesssage()
-        {
-
-
-            return true;
-        }
-
-        public bool GetMessage()
-        {
-            return true;
-        }
+        //public void StopServer()
+        //{ }
+        //    listener.Stop();
+        //}
 
     }
 }

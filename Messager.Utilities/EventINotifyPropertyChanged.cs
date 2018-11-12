@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace Messenger.Client.Utilities
+namespace Messenger.Utilities
 {
     public abstract class EventINotifyPropertyChanged : INotifyPropertyChanged
     {
