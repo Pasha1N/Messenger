@@ -21,25 +21,24 @@ namespace Messenger.Client.ViewModels
     public class MainViewModel : EventINotifyPropertyChanged
     {
         private static readonly EventWaitHandle serverStartedEvent = new EventWaitHandle(false, EventResetMode.ManualReset, "{94BF7448-1BF3-4A4A-A309-B328E02689FC}");
-        private string myIpAddress;
+        private IPAddress myIpAddress;
         private IPAddress ipEndPoint = IPAddress.Loopback;
         private int endPointPort = 2020;
         private string myUsername;
-        private string receiverName;
-        private string receiverUserame;
         private Command commandConnect;
         private Command commandSend;
         private TcpClient tcpClient = new TcpClient();
-        private bool enableToolTip = false;
+        private bool enableToolTip = false;//---
         private ICollection<User> users = new ObservableCollection<User>();
         private User selectedUser;
         private string stringMessage;
+        private int myPort;
 
         public MainViewModel()
         {
             commandConnect = new DelegateCommand(Connect);
             commandSend = new DelegateCommand(SendMesssage);
-            users.Add(new User("0.0.0.0", "Jon.S"));
+            users.Add(new User(IPAddress.Parse("1.1.1.1"), "Jon.S",2025));
         }
 
         public string IPEndPoint
@@ -84,21 +83,20 @@ namespace Messenger.Client.ViewModels
 
         public void Connect()
         {
-            serverStartedEvent.WaitOne();
-            tcpClient.Connect(ipEndPoint, endPointPort);
-            myIpAddress = tcpClient.Client.LocalEndPoint.ToString();
             BinaryFormatter formatter = new BinaryFormatter();
-            User I = new User(myIpAddress, MyUsername);
+            serverStartedEvent.WaitOne();
 
-            //  using (NetworkStream stream = tcpClient.GetStream())
-            // {
+            tcpClient.Connect(ipEndPoint, endPointPort);
+            Utilities.EndPoint endPoint = new Utilities.EndPoint();
+            endPoint = endPoint.GetEndPoint(tcpClient.Client.LocalEndPoint.ToString());
+            myIpAddress = endPoint.IPAddress;
+            myPort = endPoint.Port;
+
+            User I = new User(endPoint.IPAddress, MyUsername, endPoint.Port);
             NetworkStream stream = tcpClient.GetStream();
-               formatter.Serialize(stream, I);
+            formatter.Serialize(stream, I);
             stream.Flush();
-
-            // }
-
-        } //+
+        }//+
 
         public bool Disconnect()
         {
@@ -108,26 +106,21 @@ namespace Messenger.Client.ViewModels
 
         public void SendMesssage() //+
         {
-            receiverName = "1.1.1.1";
-            receiverUserame = "Mike";
-            
             BinaryFormatter formatter = new BinaryFormatter();
-
-            User sender = new User(myIpAddress, myUsername);
-            User receiver = new User(receiverName, receiverUserame);
-
+            User sender = new User(myIpAddress, MyUsername, myPort);
+             User receiver = new User(SelectedUser.IPAddress, SelectedUser.Username, SelectedUser.Port);
+          //  User receiver=new User(IPAddress.Parse("2.2.2.2"),"Gosha",6529);
             Message message = new Message(sender, receiver, stringMessage);
 
-            //   using (NetworkStream stream = tcpClient.GetStream())
-            // {
             NetworkStream stream = tcpClient.GetStream();
-                formatter.Serialize(stream, message);
+            formatter.Serialize(stream, message);
             stream.Flush();
-           // }
         }
 
-        public void UpdateUserListForAll()
+        public void UpdateUserCollection()
         {
+
+
 
         }
     }
