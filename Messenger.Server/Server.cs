@@ -91,8 +91,9 @@ namespace Messenger.Server
                     BinaryFormatter formatter = new BinaryFormatter();
                     User user;
 
-                    using (NetworkStream stream = tcpClient.GetStream())// information about the connected
-                    {
+                    //using (NetworkStream stream = tcpClient.GetStream())// information about the connected
+                   // {
+                        NetworkStream stream = tcpClient.GetStream();
                         user = (User)formatter.Deserialize(stream);
                         Console.ForegroundColor = ConsoleColor.DarkGray;
                         Console.Write(" User ");
@@ -106,7 +107,7 @@ namespace Messenger.Server
                         Console.ForegroundColor = ConsoleColor.DarkGray;
                         Console.WriteLine(" was notified to update list of connected users.");
                         Console.ResetColor();
-                    }
+                  //  }
 
                     Console.ForegroundColor = ConsoleColor.DarkGray;
                     Console.WriteLine(" Waiting for new client...");
@@ -114,22 +115,24 @@ namespace Messenger.Server
 
                     while (true)
                     {
-                        try
-                        {
-                            using (NetworkStream stream = tcpClient.GetStream())
-                            {
-                                Message message = (Message)formatter.Deserialize(stream);
+                        //   try
+                        //{
+                        //  using (NetworkStream stream = tcpClient.GetStream())
+                        //{
+                        NetworkStream stream1 = tcpClient.GetStream();
+                                Message message = (Message)formatter.Deserialize(stream1);
                                 Console.WriteLine($"Message-> {message.GetMessage}");
                                 Console.WriteLine($" SenderName->{message.Sender.Name}, SenderUsername->{message.Sender.Username}");
                                 Console.WriteLine($"RecipientName->{message.Recipient.Name}, RecipientUsername->{message.Recipient.Username}");
-                                SendMesssage(message);
-                            }
-                        }
-                        catch (InvalidOperationException)
-                        {
-                            break;
-                        }
+                               // SendMesssage(message);
+                            //}
+                     //   }
+                     //   catch (InvalidOperationException)
+                      //  {
+                       //     break;
+                       // }
                     }
+                    
                 }, null, TaskCreationOptions.LongRunning);
              
             }
@@ -152,10 +155,11 @@ namespace Messenger.Server
                     TcpClient tcpClient = new TcpClient(iPEndPoint);
                     BinaryFormatter formatter = new BinaryFormatter();
 
-                    using (NetworkStream stream = tcpClient.GetStream())
-                    {
+                   // using (NetworkStream stream = tcpClient.GetStream())
+                    //{
+                        NetworkStream stream = tcpClient.GetStream();
                         formatter.Serialize(stream, message);
-                    }
+                   // }
                 }
             }
         }

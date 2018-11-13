@@ -85,15 +85,18 @@ namespace Messenger.Client.ViewModels
         public void Connect()
         {
             serverStartedEvent.WaitOne();
-            tcpClient.Connect(ipEndPoint.ToString(), endPointPort);
+            tcpClient.Connect(ipEndPoint, endPointPort);
             myIpAddress = tcpClient.Client.LocalEndPoint.ToString();
             BinaryFormatter formatter = new BinaryFormatter();
             User I = new User(myIpAddress, MyUsername);
 
-            using (NetworkStream stream = tcpClient.GetStream())
-            {
+            //  using (NetworkStream stream = tcpClient.GetStream())
+            // {
+            NetworkStream stream = tcpClient.GetStream();
                formatter.Serialize(stream, I);
-            }
+            stream.Flush();
+
+            // }
 
         } //+
 
@@ -107,7 +110,7 @@ namespace Messenger.Client.ViewModels
         {
             receiverName = "1.1.1.1";
             receiverUserame = "Mike";
-            tcpClient.Connect(ipEndPoint.ToString(), endPointPort);
+            
             BinaryFormatter formatter = new BinaryFormatter();
 
             User sender = new User(myIpAddress, myUsername);
@@ -115,10 +118,12 @@ namespace Messenger.Client.ViewModels
 
             Message message = new Message(sender, receiver, stringMessage);
 
-            using (NetworkStream stream = tcpClient.GetStream())
-            {
+            //   using (NetworkStream stream = tcpClient.GetStream())
+            // {
+            NetworkStream stream = tcpClient.GetStream();
                 formatter.Serialize(stream, message);
-            }
+            stream.Flush();
+           // }
         }
 
         public void UpdateUserListForAll()
