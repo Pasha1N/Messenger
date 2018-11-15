@@ -94,8 +94,21 @@ namespace Messenger.Client.ViewModels
 
             User I = new User(endPoint.IPAddress, MyUsername, endPoint.Port);
             NetworkStream stream = tcpClient.GetStream();
-            formatter.Serialize(stream, I);
-            stream.Flush();
+       //     int key;
+        //    byte[] bytes = new byte[4];
+        //    stream.Read(bytes, 0, bytes.Length);
+         //   key = BitConverter.ToInt32(bytes,0);
+
+          //  if(key==0)
+         //   {
+
+         //   }
+          //  else
+          //  {
+                formatter.Serialize(stream, I);
+                stream.Flush();
+          //  }
+           
         }//+
 
         public bool Disconnect()
