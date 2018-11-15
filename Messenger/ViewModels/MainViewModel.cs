@@ -33,6 +33,7 @@ namespace Messenger.Client.ViewModels
         private User selectedUser;
         private string stringMessage;
         private int myPort;
+        private Utilities.EndPoint utilitiesEndPoint = new Utilities.EndPoint();
 
         public MainViewModel()
         {
@@ -46,10 +47,13 @@ namespace Messenger.Client.ViewModels
             get => ipEndPoint.ToString() + ":" + endPointPort;
             set
             {
-                Utilities.EndPoint endPoint = new Utilities.EndPoint();
-                endPoint = endPoint.GetEndPoint(value);
-                ipEndPoint = endPoint.IPAddress;
-                endPointPort = endPoint.Port;
+                if (!$"{ipEndPoint}:{endPointPort}".Equals(value))
+                {
+                    utilitiesEndPoint = utilitiesEndPoint.GetEndPoint(value);
+                    ipEndPoint = utilitiesEndPoint.IPAddress;
+                    endPointPort = utilitiesEndPoint.Port;
+                    OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs(nameof(IPEndPoint)));
+                }
             }
         } //+
 
@@ -64,8 +68,6 @@ namespace Messenger.Client.ViewModels
             get => stringMessage;
             set => SetProperty(ref stringMessage, value);
         }
-
-
 
         public string MyUsername //?
         {
@@ -87,29 +89,16 @@ namespace Messenger.Client.ViewModels
             serverStartedEvent.WaitOne();
 
             tcpClient.Connect(ipEndPoint, endPointPort);
-            Utilities.EndPoint endPoint = new Utilities.EndPoint();
-            endPoint = endPoint.GetEndPoint(tcpClient.Client.LocalEndPoint.ToString());
-            myIpAddress = endPoint.IPAddress;
-            myPort = endPoint.Port;
+            utilitiesEndPoint = utilitiesEndPoint.GetEndPoint(tcpClient.Client.LocalEndPoint.ToString());
+            myIpAddress = utilitiesEndPoint.IPAddress;
+            myPort = utilitiesEndPoint.Port;
 
-            User I = new User(endPoint.IPAddress, MyUsername, endPoint.Port);
+            User I = new User(utilitiesEndPoint.IPAddress, MyUsername, utilitiesEndPoint.Port);
             NetworkStream stream = tcpClient.GetStream();
-       //     int key;
-        //    byte[] bytes = new byte[4];
-        //    stream.Read(bytes, 0, bytes.Length);
-         //   key = BitConverter.ToInt32(bytes,0);
-
-          //  if(key==0)
-         //   {
-
-         //   }
-          //  else
-          //  {
-                formatter.Serialize(stream, I);
-                stream.Flush();
-          //  }
-           
-        }//+
+            formatter.Serialize(stream, I);
+            stream.Flush();
+            WaitForMessage();
+        }
 
         public bool Disconnect()
         {
@@ -121,8 +110,9 @@ namespace Messenger.Client.ViewModels
         {
             BinaryFormatter formatter = new BinaryFormatter();
             User sender = new User(myIpAddress, MyUsername, myPort);
-             User receiver = new User(SelectedUser.IPAddress, SelectedUser.Username, SelectedUser.Port);
-          //  User receiver=new User(IPAddress.Parse("2.2.2.2"),"Gosha",6529);
+            //User receiver = new User(SelectedUser.IPAddress, SelectedUser.Username, SelectedUser.Port);
+            User receiver = new User(IPAddress.Parse("1.1.1.1"), "gggg", 2526);
+
             Message message = new Message(sender, receiver, stringMessage);
 
             NetworkStream stream = tcpClient.GetStream();
@@ -134,7 +124,34 @@ namespace Messenger.Client.ViewModels
         {
 
 
+        }
 
+        public void WaitForMessage()
+        {
+            Task.Factory.StartNew(wait =>
+            {
+                while (true)
+                {
+                    BinaryFormatter formatter = new BinaryFormatter();
+
+                    NetworkStream stream = tcpClient.GetStream();
+                    int key = 0;
+                    byte[] bytes = new byte[4];
+                    stream.Read(bytes, 0, bytes.Length);
+                    key = BitConverter.ToInt32(bytes, 0);
+
+                    if (key == 0)
+                    {
+                        Message message = (Message)formatter.Deserialize(stream);
+                        //message
+                    }
+                    else
+                    {
+                        //user
+                        User user = (User)formatter.Deserialize(stream);
+                    }
+                }
+            }, null, TaskCreationOptions.LongRunning);
         }
     }
 }

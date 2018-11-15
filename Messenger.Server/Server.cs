@@ -71,6 +71,8 @@ namespace Messenger.Server
 
             while (true)
             {
+                User user1 = new User(IPAddress.Parse("1.1.1.1"), "gggg", 2526);
+                SendMesssage(user1);
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 TcpClient tcpClient = listener.AcceptTcpClient();
                 Console.ResetColor();
@@ -91,14 +93,13 @@ namespace Messenger.Server
                 {
                     BinaryFormatter formatter = new BinaryFormatter();
                     User user;
-
                     NetworkStream stream = tcpClient.GetStream();
                     user = (User)formatter.Deserialize(stream);
                     users.Add(user);
                     Console.ForegroundColor = ConsoleColor.DarkGray;
                     Console.Write(" User ");
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.Write(user.Username);
+                    Console.Write(user.Username+" "+user.IPAddress+":"+user.Port);
                     Console.ForegroundColor = ConsoleColor.DarkGray;
                     Console.WriteLine(" Connected.");
                     Console.Write(" User ");
@@ -147,7 +148,23 @@ namespace Messenger.Server
             }
         }
 
-        public void GiveTistTheUsers(string name)
+        public void SendMesssage(User user)
+        {
+            foreach (User item in users)
+            {
+                BinaryFormatter formatter = new BinaryFormatter();
+                IPEndPoint iPEndPoint = new IPEndPoint(item.IPAddress, item.Port);
+                TcpClient tcpClient = new TcpClient(iPEndPoint);
+                NetworkStream stream = tcpClient.GetStream();
+                byte[] bytes = new byte[4];
+                bytes = BitConverter.GetBytes(1);
+                int s = BitConverter.ToInt32(bytes,0);
+                stream.Write(bytes, 0, bytes.Length);
+                formatter.Serialize(stream, user);
+            }
+        }
+
+            public void GiveListTheUsers(string name)
         {
 
 
@@ -165,7 +182,6 @@ namespace Messenger.Server
 
             for (int i = 0; i < users.Count; i++)
             {
-
                 Utilities.EndPoint endPoint = new Utilities.EndPoint();
             //    endPoint.GetEndPoint(namesUsers[i]);
 

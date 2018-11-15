@@ -9,6 +9,12 @@ namespace Messenger.Utilities
 
         public int Port { get; set; }
 
+        public void CleaningUpResources()
+        {
+            IPAddress = null;
+            Port = 0;
+        }
+
         public EndPoint GetEndPoint(string remoteEndPoint)
         {
             StringBuilder stringBuilder = new StringBuilder(remoteEndPoint);
