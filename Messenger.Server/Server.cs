@@ -18,6 +18,7 @@ namespace Messenger.Server
         private int port = 2020;
         private TcpListener listener;
         private IList<User> users = new List<User>();
+        private IDictionary<string, TcpClient> clients = new Dictionary<string, TcpClient>();
 
         public Server()
         {
@@ -96,6 +97,8 @@ namespace Messenger.Server
                     NetworkStream stream = tcpClient.GetStream();
                     user = (User)formatter.Deserialize(stream);
                     users.Add(user);
+                    clients.Add(user.IPAddress.ToString() + user.Port.ToString(), tcpClient);
+
                     Console.ForegroundColor = ConsoleColor.DarkGray;
                     Console.Write(" User ");
                     Console.ForegroundColor = ConsoleColor.Yellow;
@@ -153,14 +156,27 @@ namespace Messenger.Server
             foreach (User item in users)
             {
                 BinaryFormatter formatter = new BinaryFormatter();
-                IPEndPoint iPEndPoint = new IPEndPoint(item.IPAddress, item.Port);
-                TcpClient tcpClient = new TcpClient(iPEndPoint);
-                NetworkStream stream = tcpClient.GetStream();
-                byte[] bytes = new byte[4];
-                bytes = BitConverter.GetBytes(1);
-                int s = BitConverter.ToInt32(bytes,0);
-                stream.Write(bytes, 0, bytes.Length);
-                formatter.Serialize(stream, user);
+                //   IPEndPoint iPEndPoint = new IPEndPoint(item.IPAddress, item.Port);
+                TcpClient tcpClient = null;// = new TcpClient(iPEndPoint);
+             
+                foreach(KeyValuePair<string, TcpClient> client in clients)
+                {
+                    if (client.Key ==$"{item.IPAddress}{ item.Port}")
+                    {
+                        tcpClient = client.Value;
+                    }
+                }
+
+                if (tcpClient != null)
+                {
+                    NetworkStream stream = tcpClient.GetStream();
+
+                    byte[] bytes = new byte[4];
+                    bytes = BitConverter.GetBytes(1);
+                    int s = BitConverter.ToInt32(bytes, 0);
+                    stream.Write(bytes, 0, bytes.Length);
+                    formatter.Serialize(stream, user);
+                }
             }
         }
 
