@@ -24,22 +24,26 @@ namespace Messenger.Client.ViewModels
         private IPAddress myIpAddress;
         private IPAddress ipEndPoint = IPAddress.Loopback;
         private int endPointPort = 2020;
-        private string myUsername;
+        private string myName;
         private Command commandConnect;
         private Command commandSend;
         private TcpClient tcpClient = new TcpClient();
-        private bool enableToolTip = false;//---
+        //   private bool enableToolTip = false;//---
         private ICollection<User> users = new ObservableCollection<User>();
         private User selectedUser;
         private string stringMessage;
         private int myPort;
         private Utilities.EndPoint utilitiesEndPoint = new Utilities.EndPoint();
+        private ICollection<MessageViewModel> messageViewModels = new ObservableCollection<MessageViewModel>();
+        private bool enableMessageWriting = false;
+        private bool enableMessageSending = false;
+        private bool enableUsernameField = true;
+        private BinaryFormatter formatter = new BinaryFormatter();
 
         public MainViewModel()
         {
-            commandConnect = new DelegateCommand(Connect);
+            commandConnect = new DelegateCommand(Connect, EnableCommandConnect);
             commandSend = new DelegateCommand(SendMesssage);
-            users.Add(new User(IPAddress.Parse("1.1.1.1"), "Jon.S",2025));
         }
 
         public string IPEndPoint
@@ -61,43 +65,79 @@ namespace Messenger.Client.ViewModels
 
         public ICommand CommandSend => commandSend;
 
-        public ICollection<User> Users => users; //+
+        public IEnumerable<User> Users => users; //+
+
+        public IEnumerable<MessageViewModel> MessageViewModels => messageViewModels;
+
+        public string TimeNow => DateTime.Now.ToLongTimeString();
+
+        public bool EnableUsernameField
+        {
+            get => enableUsernameField;
+            set => SetProperty(ref enableUsernameField, value);
+        }
 
         public string StringMessage
         {
             get => stringMessage;
-            set => SetProperty(ref stringMessage, value);
+            set
+            {
+                EnableMessageSending = value.Length > 0;
+                stringMessage = value;
+                OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs(nameof(StringMessage)));
+            }
         }
 
-        public string MyUsername //?
+        public bool EnableMessageWriting
         {
-            get => myUsername;
-            set => SetProperty(ref myUsername, value);
+            get => enableMessageWriting;
+            set => SetProperty(ref enableMessageWriting, value);
         }
 
-        public bool EnableToolTip { get; private set; }
+        public bool EnableMessageSending
+        {
+            get => enableMessageSending;
+            set => SetProperty(ref enableMessageSending, value);
+        }
+
+        public string MyName //?
+        {
+            get => myName;
+            set => SetProperty(ref myName, value);
+        }
+
+        //    public bool EnableToolTip { get; private set; }
 
         public User SelectedUser
         {
             get => selectedUser;
-            set => SetProperty(ref selectedUser, value);
-        } //+
+            set
+            {
+                selectedUser = value;
+                OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs(nameof(SelectedUser)));
+                EnableMessageWriting = SelectedUser != null;
+            }
+        }
 
         public void Connect()
         {
-            BinaryFormatter formatter = new BinaryFormatter();
-            serverStartedEvent.WaitOne();
+            if (EnableCommandConnect())
+            {
+                Task.Factory.StartNew(() =>
+                {
+                    tcpClient.Connect(ipEndPoint, endPointPort);
+                    utilitiesEndPoint = utilitiesEndPoint.GetEndPoint(tcpClient.Client.LocalEndPoint.ToString());
+                    myIpAddress = utilitiesEndPoint.IPAddress;
+                    myPort = utilitiesEndPoint.Port;
 
-            tcpClient.Connect(ipEndPoint, endPointPort);
-            utilitiesEndPoint = utilitiesEndPoint.GetEndPoint(tcpClient.Client.LocalEndPoint.ToString());
-            myIpAddress = utilitiesEndPoint.IPAddress;
-            myPort = utilitiesEndPoint.Port;
-
-            User I = new User(utilitiesEndPoint.IPAddress, MyUsername, utilitiesEndPoint.Port);
-            NetworkStream stream = tcpClient.GetStream();
-            formatter.Serialize(stream, I);
-            stream.Flush();
-            WaitForMessage();
+                    User I = new User(utilitiesEndPoint.IPAddress, MyName, utilitiesEndPoint.Port);
+                    NetworkStream stream = tcpClient.GetStream();
+                    formatter.Serialize(stream, I);
+                    stream.Flush();
+                    WaitForMessage();
+                });
+            }
+            commandConnect.OnCanExecuteChanged(EventArgs.Empty);
         }
 
         public bool Disconnect()
@@ -108,22 +148,31 @@ namespace Messenger.Client.ViewModels
 
         public void SendMesssage() //+
         {
-            BinaryFormatter formatter = new BinaryFormatter();
-            User sender = new User(myIpAddress, MyUsername, myPort);
-            //User receiver = new User(SelectedUser.IPAddress, SelectedUser.Username, SelectedUser.Port);
-            User receiver = new User(IPAddress.Parse("1.1.1.1"), "gggg", 2526);
-
+            User sender = new User(myIpAddress, MyName, myPort);
+            User receiver = new User(SelectedUser.IPAddress, SelectedUser.Username, SelectedUser.Port);
             Message message = new Message(sender, receiver, stringMessage);
-
             NetworkStream stream = tcpClient.GetStream();
             formatter.Serialize(stream, message);
             stream.Flush();
+
+            MessageViewModel messageViewModel = new MessageViewModel(message);
+            messageViewModel.PrepositionRecipient = $"{sender.Username}";
+            messageViewModel.PrepositionSender = "Me";
+            messageViewModels.Add(messageViewModel);
         }
 
-        public void UpdateUserCollection()
+        public bool EnableCommandConnect()
         {
+            bool enableCommandConnect = true;
 
-
+            foreach (User user in users)
+            {
+                if (user.Username == myName)
+                {
+                    enableCommandConnect = false;
+                }
+            }
+            return enableCommandConnect;
         }
 
         public void WaitForMessage()
@@ -132,8 +181,6 @@ namespace Messenger.Client.ViewModels
             {
                 while (true)
                 {
-                    BinaryFormatter formatter = new BinaryFormatter();
-
                     NetworkStream stream = tcpClient.GetStream();
                     int key = 0;
                     byte[] bytes = new byte[4];
@@ -143,12 +190,27 @@ namespace Messenger.Client.ViewModels
                     if (key == 0)
                     {
                         Message message = (Message)formatter.Deserialize(stream);
-                        //message
+
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            MessageViewModel messageViewModel = new MessageViewModel(message);
+                            messageViewModel.PrepositionRecipient = "Me";
+                            messageViewModel.PrepositionSender = $"{message.Sender.Username}";
+                            messageViewModels.Add(messageViewModel);
+                        });
                     }
                     else
                     {
-                        //user
                         User user = (User)formatter.Deserialize(stream);
+
+                        if (user.Username != MyName)
+                        {
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                users.Add(user);
+                            });
+                        }
+
                     }
                 }
             }, null, TaskCreationOptions.LongRunning);

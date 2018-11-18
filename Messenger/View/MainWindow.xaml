@@ -5,17 +5,28 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Messenger.View"
         xmlns:user="clr-namespace:Messenger.Models;assembly=Messenger.Models"
+        xmlns:MainViewModel="clr-namespace:Messenger.Client.ViewModels"
         mc:Ignorable="d"
         WindowStartupLocation="CenterScreen"
-        Title="MainWindow" Height="400" Width="700">
+        Title="Client" Height="400" Width="700">
 
     <Window.Resources>
         <DataTemplate DataType="{x:Type user:User}">
             <TextBlock Text="{Binding Path=Username}"/>
 
         </DataTemplate>
-        
-        
+
+        <DataTemplate DataType="{x:Type MainViewModel:MessageViewModel}">
+            <TextBlock>
+                <Run Text="{Binding Path=TimeNow}"/>
+                 <Run Text="{Binding Path=PrepositionSender}" Foreground="Blue"/>
+                 <Run Text="to"/>
+                 <Run Text="{Binding Path=PrepositionRecipient}" Foreground="Green"/>
+                 <Run Text="{Binding Path=GetMessage,Mode=OneTime}"/>
+            </TextBlock>
+        </DataTemplate>
+
+
     </Window.Resources>
     
     <Grid Margin="5">
@@ -38,7 +49,7 @@
             <TextBlock Text="Server Name" VerticalAlignment="Bottom" Height="16"/>
             <TextBox Grid.Row="1" Text="{Binding Path=IPEndPoint}"/>
             <TextBlock Grid.Row="2" Text="Username" VerticalAlignment="Bottom" Height="16"/>
-            <TextBox Grid.Row="3" Text="{Binding Path=MyUsername}"/>
+            <TextBox IsEnabled="{Binding Path=EnableUsernameField}" Grid.Row="3" Text="{Binding Path=MyName}"/>
             <Button Command="{Binding Path=CommandConnect}" Grid.Row="4" Margin="0,5,0,3" Content="Connect" />
             <Button Grid.Row="5" Margin="0,2,0,5"  Content="Disconnect" />
             <ListBox Grid.Row="6" ItemsSource="{Binding Path=Users}" SelectedItem="{Binding Path=SelectedUser}"/>
@@ -53,7 +64,7 @@
             </Grid.RowDefinitions>
 
 
-            <ListBox Margin="5">
+            <ListBox Margin="5" ItemsSource="{Binding Path=MessageViewModels}">
 
             </ListBox>
 
@@ -63,8 +74,8 @@
                     <ColumnDefinition/>
                     <ColumnDefinition Width="55"/>
                 </Grid.ColumnDefinitions>
-                <TextBox  Text=" Write message"/>
-                <Button Command="{Binding Path=CommandSend}" Grid.Column="1" Content="Send" Margin="5,0,0,0"/>
+                <TextBox IsEnabled="{Binding Path=EnableMessageWriting}"  Text="{Binding Path= StringMessage,UpdateSourceTrigger=PropertyChanged}"/>
+                <Button IsEnabled="{Binding Path= EnableMessageSending}" Command="{Binding Path=CommandSend}" Grid.Column="1" Content="Send" Margin="5,0,0,0"/>
             </Grid>
 
         </Grid>

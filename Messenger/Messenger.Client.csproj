@@ -61,6 +61,7 @@
     <Compile Include="Commands\Command.cs" />
     <Compile Include="Commands\DelegateCommand.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />
+    <Compile Include="ViewModels\MessageViewModel.cs" />
     <Compile Include="View\MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
