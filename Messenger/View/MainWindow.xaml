@@ -26,6 +26,7 @@
             </TextBlock>
         </DataTemplate>
 
+        <BooleanToVisibilityConverter x:Key="booleanToVisibilityConverter"/>
 
     </Window.Resources>
     
@@ -47,15 +48,27 @@
             </Grid.RowDefinitions>
 
             <TextBlock Text="Server Name" VerticalAlignment="Bottom" Height="16"/>
-            <TextBox Grid.Row="1" Text="{Binding Path=IPEndPoint}"/>
+            <TextBox Grid.Row="1" Text="{Binding Path=IPEndPoint}">
+                <ToolTipService.InitialShowDelay>55</ToolTipService.InitialShowDelay>
+                <TextBox.ToolTip>
+                    <ToolTip Content="Error" Visibility="{Binding Path= VisibilityOfServerNameError, Converter={StaticResource ResourceKey=booleanToVisibilityConverter}}"/>
+                </TextBox.ToolTip>
+            </TextBox>
+            <Border Grid.Row="1" BorderThickness="2" BorderBrush="Red" Visibility="{Binding Path= VisibilityOfServerNameError, Converter={StaticResource ResourceKey=booleanToVisibilityConverter}}"/>
             <TextBlock Grid.Row="2" Text="Username" VerticalAlignment="Bottom" Height="16"/>
-            <TextBox IsEnabled="{Binding Path=EnableUsernameField}" Grid.Row="3" Text="{Binding Path=MyName}"/>
+            <TextBox IsEnabled="{Binding Path=EnableUsernameField}" Grid.Row="3" Text="{Binding Path=MyName}">
+                <ToolTipService.InitialShowDelay>55</ToolTipService.InitialShowDelay>
+                <TextBox.ToolTip>
+
+                    <ToolTip Visibility="{Binding Path= VisibilityOfServerNameError, Converter={StaticResource ResourceKey=booleanToVisibilityConverter}}"
+                             Content="This name already exists" />
+                </TextBox.ToolTip>
+            </TextBox>
+            <Border Grid.Row="3" BorderThickness="2" BorderBrush="Red" Visibility="{Binding Path= VisibilityOfUsernameError, Converter={StaticResource ResourceKey=booleanToVisibilityConverter}}"/>
             <Button Command="{Binding Path=CommandConnect}" Grid.Row="4" Margin="0,5,0,3" Content="Connect" />
             <Button Grid.Row="5" Margin="0,2,0,5"  Content="Disconnect" />
             <ListBox Grid.Row="6" ItemsSource="{Binding Path=Users}" SelectedItem="{Binding Path=SelectedUser}"/>
-            
-            
-        </Grid>
+            </Grid>
 
         <Grid Grid.Column="1">
             <Grid.RowDefinitions>

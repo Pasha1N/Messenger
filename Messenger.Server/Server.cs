@@ -68,7 +68,7 @@ namespace Messenger.Server
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine(" Waiting for new client...");
             Console.ResetColor();
-            // Task.Factory.StartNew(connect  =>
+            // Task.Factory.StartNew(connect  => //to ask
             //   {
             while (true)
             {
@@ -93,46 +93,67 @@ namespace Messenger.Server
                     User user;
                     NetworkStream stream = tcpClient.GetStream();
                     user = (User)formatter.Deserialize(stream);
-                    users.Add(user);
-                    clients.Add(user.IPAddress.ToString() + user.Port.ToString(), tcpClient);
-                    //падает при поdключении нескольких пользователей если сервер выключен
-                    SendMesssage(user);
-                    UpdateUserCollection(tcpClient, user);
 
+                    bool userFound = SearchUsers(user);
+                    byte[] bytes = new byte[1];
+                    bytes = BitConverter.GetBytes(userFound);
+                    stream.Write(bytes, 0, bytes.Length);
+
+                    if (!userFound)
                     {
-                        Console.ForegroundColor = ConsoleColor.DarkGray;
-                        Console.Write(" User ");
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.Write(user.Username + " " + user.IPAddress + ":" + user.Port);
-                        Console.ForegroundColor = ConsoleColor.DarkGray;
-                        Console.WriteLine(" Connected.");
-                        Console.Write(" User ");
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.Write(user.Username);
-                        Console.ForegroundColor = ConsoleColor.DarkGray;
-                        Console.WriteLine(" was notified to update list of connected users.");
-                        Console.ResetColor();
-                        Console.ForegroundColor = ConsoleColor.DarkGray;
-                        Console.WriteLine(" Waiting for new client...");
-                        Console.ResetColor();
-                    }
-                    while (true)
-                    {
-                        Message message = (Message)formatter.Deserialize(stream);
-                        Console.WriteLine($"Message-> {message.GetMessage}");
-                        Console.WriteLine($" SenderName->{message.Sender.IPAddress}");
-                        Console.WriteLine($" SenderUsername->{message.Sender.Username}");
-                        Console.WriteLine($"Sender Port-> {message.Sender.Port}");
-                        Console.WriteLine($"RecipientName->{message.Recipient.IPAddress}, RecipientUsername->{message.Recipient.Username}");
-                        SendMesssage(message);
+                        users.Add(user);
+                        clients.Add(user.IPAddress.ToString() + user.Port.ToString(), tcpClient);
 
+                        //падает при поdключении нескольких пользователей если сервер выключен
+                        SendMesssage(user);
+                        UpdateUserCollection(tcpClient, user);
 
-
+                        {
+                            Console.ForegroundColor = ConsoleColor.DarkGray;
+                            Console.Write(" User ");
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.Write(user.Username + " " + user.IPAddress + ":" + user.Port);
+                            Console.ForegroundColor = ConsoleColor.DarkGray;
+                            Console.WriteLine(" Connected.");
+                            Console.Write(" User ");
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.Write(user.Username);
+                            Console.ForegroundColor = ConsoleColor.DarkGray;
+                            Console.WriteLine(" was notified to update list of connected users.");
+                            Console.ResetColor();
+                            Console.ForegroundColor = ConsoleColor.DarkGray;
+                            Console.WriteLine(" Waiting for new client...");
+                            Console.ResetColor();
+                        }
+                        while (true)
+                        {
+                            Message message = (Message)formatter.Deserialize(stream);
+                            Console.WriteLine($"Message-> {message.GetMessage}");
+                            Console.WriteLine($" SenderName->{message.Sender.IPAddress}");
+                            Console.WriteLine($" SenderUsername->{message.Sender.Username}");
+                            Console.WriteLine($"Sender Port-> {message.Sender.Port}");
+                            Console.WriteLine($"RecipientName->{message.Recipient.IPAddress}, RecipientUsername->{message.Recipient.Username}");
+                            SendMesssage(message);
+                        }
                     }
                 }, null, TaskCreationOptions.LongRunning);
 
             }
             //   }, null, TaskCreationOptions.LongRunning);
+        }
+
+        public bool SearchUsers(User user)
+        {
+            bool enableCommandConnect = false;
+
+            foreach (User item in users)
+            {
+                if (item.Username == user.Username)
+                {
+                    enableCommandConnect = true;
+                }
+            }
+            return enableCommandConnect;
         }
 
         public void Disconnect(string Username)

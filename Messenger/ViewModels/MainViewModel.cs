@@ -28,7 +28,6 @@ namespace Messenger.Client.ViewModels
         private Command commandConnect;
         private Command commandSend;
         private TcpClient tcpClient = new TcpClient();
-        //   private bool enableToolTip = false;//---
         private ICollection<User> users = new ObservableCollection<User>();
         private User selectedUser;
         private string stringMessage;
@@ -39,11 +38,16 @@ namespace Messenger.Client.ViewModels
         private bool enableMessageSending = false;
         private bool enableUsernameField = true;
         private BinaryFormatter formatter = new BinaryFormatter();
+        private User I;
+        private bool enableCommandConnect = true;
+        private bool visibilityOfUsernameError = false;
+        private bool visibilityOfServerNameError = false;
 
         public MainViewModel()
         {
             commandConnect = new DelegateCommand(Connect, EnableCommandConnect);
             commandSend = new DelegateCommand(SendMesssage);
+            VisibilityOfServerNameError = true;
         }
 
         public string IPEndPoint
@@ -69,12 +73,22 @@ namespace Messenger.Client.ViewModels
 
         public IEnumerable<MessageViewModel> MessageViewModels => messageViewModels;
 
-        public string TimeNow => DateTime.Now.ToLongTimeString();
-
         public bool EnableUsernameField
         {
             get => enableUsernameField;
             set => SetProperty(ref enableUsernameField, value);
+        }
+
+        public bool VisibilityOfUsernameError
+        {
+            get => visibilityOfUsernameError;
+            set => SetProperty(ref visibilityOfUsernameError, value);
+        }
+
+        public bool VisibilityOfServerNameError
+        {
+            get => visibilityOfServerNameError;
+            set => SetProperty(ref visibilityOfServerNameError, value);
         }
 
         public string StringMessage
@@ -106,8 +120,6 @@ namespace Messenger.Client.ViewModels
             set => SetProperty(ref myName, value);
         }
 
-        //    public bool EnableToolTip { get; private set; }
-
         public User SelectedUser
         {
             get => selectedUser;
@@ -121,29 +133,45 @@ namespace Messenger.Client.ViewModels
 
         public void Connect()
         {
-            if (EnableCommandConnect())
+            Task.Factory.StartNew(() =>
             {
-                Task.Factory.StartNew(() =>
-                {
-                    tcpClient.Connect(ipEndPoint, endPointPort);
-                    utilitiesEndPoint = utilitiesEndPoint.GetEndPoint(tcpClient.Client.LocalEndPoint.ToString());
-                    myIpAddress = utilitiesEndPoint.IPAddress;
-                    myPort = utilitiesEndPoint.Port;
+                tcpClient.Connect(ipEndPoint, endPointPort);
+                utilitiesEndPoint = utilitiesEndPoint.GetEndPoint(tcpClient.Client.LocalEndPoint.ToString());
+                myIpAddress = utilitiesEndPoint.IPAddress;
+                myPort = utilitiesEndPoint.Port;
 
-                    User I = new User(utilitiesEndPoint.IPAddress, MyName, utilitiesEndPoint.Port);
-                    NetworkStream stream = tcpClient.GetStream();
-                    formatter.Serialize(stream, I);
-                    stream.Flush();
+                I = new User(utilitiesEndPoint.IPAddress, MyName, utilitiesEndPoint.Port);
+                NetworkStream stream = tcpClient.GetStream();
+                formatter.Serialize(stream, I);
+                stream.Flush();
+                bool isConnected = false;
+                byte[] bytes = new byte[1];
+                stream.Read(bytes, 0, bytes.Length);
+
+                isConnected = BitConverter.ToBoolean(bytes, 0);
+
+                if (!isConnected)
+                {
                     WaitForMessage();
-                });
-            }
-            commandConnect.OnCanExecuteChanged(EventArgs.Empty);
+
+                    enableCommandConnect = false;
+                    VisibilityOfUsernameError = false;
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        commandConnect.OnCanExecuteChanged(EventArgs.Empty);
+                    });
+                }
+                else
+                {
+                    VisibilityOfUsernameError = true;
+                    Disconnect();
+                }
+            });//при выходе выдет из потока?
         }
 
-        public bool Disconnect()
+        public void Disconnect()
         {
-
-            return true;
+      //      tcpClient.
         }
 
         public void SendMesssage() //+
@@ -163,15 +191,6 @@ namespace Messenger.Client.ViewModels
 
         public bool EnableCommandConnect()
         {
-            bool enableCommandConnect = true;
-
-            foreach (User user in users)
-            {
-                if (user.Username == myName)
-                {
-                    enableCommandConnect = false;
-                }
-            }
             return enableCommandConnect;
         }
 
