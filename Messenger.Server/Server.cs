@@ -1,11 +1,9 @@
 ﻿using Messenger.Models;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,7 +11,6 @@ namespace Messenger.Server
 {
     public class Server
     {
-        private readonly EventWaitHandle serverStartedEvent = new EventWaitHandle(false, EventResetMode.ManualReset, "{94BF7448-1BF3-4A4A-A309-B328E02689FC}");
         private IPAddress ipAddress = IPAddress.Loopback;
         private int port = 2020;
         private TcpListener listener;
@@ -23,11 +20,6 @@ namespace Messenger.Server
 
         public Server()
         {
-            {
-                // IPEndPoint ipEndPoint = new IPEndPoint(ipAddress, port);
-                //  serverSocket.Bind(ipEndPoint);
-                //   serverSocket.Listen(10);
-            }
             startServer();
         }
 
@@ -59,87 +51,88 @@ namespace Messenger.Server
                 }
             }
 
-            serverStartedEvent.Set();
             Connect();
-        } //+
+        }
 
-        public void Connect() //+
+        public void Connect()
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine(" Waiting for new client...");
             Console.ResetColor();
-            // Task.Factory.StartNew(connect  => //to ask
-            //   {
+
+            Task.Factory.StartNew(Connect =>
+            {
+                while (true)
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    TcpClient tcpClient = listener.AcceptTcpClient();
+                    Console.ResetColor();
+
+                    Task.Factory.StartNew(() =>
+                    {
+                        User user;
+                        NetworkStream stream = tcpClient.GetStream();
+                        user = (User)formatter.Deserialize(stream);
+
+                        bool userFound = SearchUsers(user);
+                        byte[] bytes = new byte[1];
+                        bytes = BitConverter.GetBytes(userFound);
+                        stream.Write(bytes, 0, bytes.Length);
+
+                        if (!userFound)
+                        {
+                            users.Add(user);
+                            clients.Add(user.IPAddress.ToString() + user.Port.ToString(), tcpClient);
+                            SendMesssage(user);
+                            UpdateUserCollection(tcpClient, user);
+
+                            {
+                                Console.ForegroundColor = ConsoleColor.DarkGray;
+                                Console.Write(" User ");
+                                Console.ForegroundColor = ConsoleColor.Yellow;
+                                Console.Write(user.Username + " " + user.IPAddress + ":" + user.Port);
+                                Console.ForegroundColor = ConsoleColor.DarkGray;
+                                Console.WriteLine(" Connected.");
+                                Console.Write(" User ");
+                                Console.ForegroundColor = ConsoleColor.Yellow;
+                                Console.Write(user.Username);
+                                Console.ForegroundColor = ConsoleColor.DarkGray;
+                                Console.WriteLine(" was notified to update list of connected users.");
+                                Console.ResetColor();
+                                Console.ForegroundColor = ConsoleColor.DarkGray;
+                                Console.WriteLine(" Waiting for new client...");
+                                Console.ResetColor();
+                            }
+
+                            while (true)
+                            {
+                                Message message = (Message)formatter.Deserialize(stream);//try 
+                                Console.Write($" User ({message.Sender.Username}) Send a message to");
+                                Console.WriteLine($"User ({message.Recipient.Username})");
+                                SendMesssage(message);
+                            }
+                        }
+                    });
+                }
+            }, null, TaskCreationOptions.LongRunning);
+
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine(" To close the server, click ( Escape )");
+            Console.ResetColor();
+
             while (true)
             {
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                TcpClient tcpClient = listener.AcceptTcpClient();
-                Console.ResetColor();
+                ConsoleKeyInfo keyInfo = Console.ReadKey(true);
 
+                if (keyInfo.Key == ConsoleKey.Escape)
                 {
-                    //ConsoleKeyInfo keyInfo = Console.ReadKey();
-
-                    //if (keyInfo.Key == ConsoleKey.Escape)
-                    //{
-                    //    Console.ForegroundColor = ConsoleColor.Green;
-                    //    listener.Stop();
-                    //    Console.WriteLine("Server Stopped");
-                    //    Console.ResetColor();
-                    //}
-                } //Server Stopped
-
-                Task.Factory.StartNew(NewClient =>
-                {
-                    User user;
-                    NetworkStream stream = tcpClient.GetStream();
-                    user = (User)formatter.Deserialize(stream);
-
-                    bool userFound = SearchUsers(user);
-                    byte[] bytes = new byte[1];
-                    bytes = BitConverter.GetBytes(userFound);
-                    stream.Write(bytes, 0, bytes.Length);
-
-                    if (!userFound)
-                    {
-                        users.Add(user);
-                        clients.Add(user.IPAddress.ToString() + user.Port.ToString(), tcpClient);
-
-                        //падает при поdключении нескольких пользователей если сервер выключен
-                        SendMesssage(user);
-                        UpdateUserCollection(tcpClient, user);
-
-                        {
-                            Console.ForegroundColor = ConsoleColor.DarkGray;
-                            Console.Write(" User ");
-                            Console.ForegroundColor = ConsoleColor.Yellow;
-                            Console.Write(user.Username + " " + user.IPAddress + ":" + user.Port);
-                            Console.ForegroundColor = ConsoleColor.DarkGray;
-                            Console.WriteLine(" Connected.");
-                            Console.Write(" User ");
-                            Console.ForegroundColor = ConsoleColor.Yellow;
-                            Console.Write(user.Username);
-                            Console.ForegroundColor = ConsoleColor.DarkGray;
-                            Console.WriteLine(" was notified to update list of connected users.");
-                            Console.ResetColor();
-                            Console.ForegroundColor = ConsoleColor.DarkGray;
-                            Console.WriteLine(" Waiting for new client...");
-                            Console.ResetColor();
-                        }
-                        while (true)
-                        {
-                            Message message = (Message)formatter.Deserialize(stream);
-                            Console.WriteLine($"Message-> {message.GetMessage}");
-                            Console.WriteLine($" SenderName->{message.Sender.IPAddress}");
-                            Console.WriteLine($" SenderUsername->{message.Sender.Username}");
-                            Console.WriteLine($"Sender Port-> {message.Sender.Port}");
-                            Console.WriteLine($"RecipientName->{message.Recipient.IPAddress}, RecipientUsername->{message.Recipient.Username}");
-                            SendMesssage(message);
-                        }
-                    }
-                }, null, TaskCreationOptions.LongRunning);
-
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    listener.Stop();
+                    Console.WriteLine("The server was closed");
+                    Console.ResetColor();
+                    break;
+                }
             }
-            //   }, null, TaskCreationOptions.LongRunning);
         }
 
         public bool SearchUsers(User user)
@@ -156,11 +149,6 @@ namespace Messenger.Server
             return enableCommandConnect;
         }
 
-        public void Disconnect(string Username)
-        {
-
-        }
-
         public void SendMesssage(Message message)
         {
             bool found = false;
@@ -171,7 +159,7 @@ namespace Messenger.Server
 
                 foreach (KeyValuePair<string, TcpClient> client in clients)
                 {
-                    if ($"{user.IPAddress}{user.Port}"==client.Key)
+                    if ($"{user.IPAddress}{user.Port}" == client.Key)
                     {
                         tcpClient = client.Value;
                         found = true;
@@ -188,18 +176,14 @@ namespace Messenger.Server
                     stream.Write(bytes, 0, bytes.Length);
                     formatter.Serialize(stream, message);
                     stream.Flush();
-
-                    string date = DateTime.Now.ToShortTimeString(); //date = new DateTime();
-                    string date1 = DateTime.Now.ToShortTimeString();
-
                     break;
                 }
             }
         }
 
-        public void SendMesssage(User user)//будет ли нарушение солида если здесь использовать обобщение?
+        public void SendMesssage(User user) //нужно использовать обобщение
         {
-            foreach (User item in users)// ошипка: изменение колекцие ( не всегда );
+            foreach (User item in users)
             {
                 TcpClient tcpClient = null;
 
@@ -222,20 +206,37 @@ namespace Messenger.Server
                     stream.Write(bytes, 0, bytes.Length);
                     formatter.Serialize(stream, user);
                     stream.Flush();
-
                 }
             }
         }
 
         //public void StopServer()
-        //{ }
-        //    listener.Stop();
+        //{
+        //    Task.Factory.StartNew(() =>
+        //    {
+        //        Console.ForegroundColor = ConsoleColor.Red;
+        //        Console.WriteLine(" To close the server, click ( Escape )");
+        //        Console.ResetColor();
+
+        //        while (true)
+        //        {
+        //            ConsoleKeyInfo keyInfo = Console.ReadKey();
+
+        //            if (keyInfo.Key == ConsoleKey.Escape)
+        //            {
+        //                Console.ForegroundColor = ConsoleColor.Green;
+        //                listener.Stop();
+                       
+        //                listenerIsClose = true;
+        //                Console.WriteLine("Server Stopped");
+        //                Console.ResetColor();
+        //            }
+        //        }
+        //    });
         //}
 
         public void UpdateUserCollection(TcpClient whoNeedsUpgrade, User endPoint)
         {
-            //  Task.Run(() => //при оборачивании происходит ошибка
-            //  {
             NetworkStream stream = whoNeedsUpgrade.GetStream();
 
             foreach (User user in users)
@@ -251,7 +252,6 @@ namespace Messenger.Server
                     stream.Flush();
                 }
             }
-            //});
         }
     }
 }

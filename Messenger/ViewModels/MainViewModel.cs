@@ -27,7 +27,7 @@ namespace Messenger.Client.ViewModels
         private string myName;
         private Command commandConnect;
         private Command commandSend;
-        private TcpClient tcpClient = new TcpClient();
+        private TcpClient tcpClient = null;
         private ICollection<User> users = new ObservableCollection<User>();
         private User selectedUser;
         private string stringMessage;
@@ -47,7 +47,6 @@ namespace Messenger.Client.ViewModels
         {
             commandConnect = new DelegateCommand(Connect, EnableCommandConnect);
             commandSend = new DelegateCommand(SendMesssage);
-            VisibilityOfServerNameError = true;
         }
 
         public string IPEndPoint
@@ -135,6 +134,7 @@ namespace Messenger.Client.ViewModels
         {
             Task.Factory.StartNew(() =>
             {
+                tcpClient = new TcpClient();
                 tcpClient.Connect(ipEndPoint, endPointPort);
                 utilitiesEndPoint = utilitiesEndPoint.GetEndPoint(tcpClient.Client.LocalEndPoint.ToString());
                 myIpAddress = utilitiesEndPoint.IPAddress;
@@ -147,7 +147,6 @@ namespace Messenger.Client.ViewModels
                 bool isConnected = false;
                 byte[] bytes = new byte[1];
                 stream.Read(bytes, 0, bytes.Length);
-
                 isConnected = BitConverter.ToBoolean(bytes, 0);
 
                 if (!isConnected)
@@ -164,7 +163,7 @@ namespace Messenger.Client.ViewModels
                 else
                 {
                     VisibilityOfUsernameError = true;
-                    Disconnect();
+                    tcpClient.Close();
                 }
             });//при выходе выдет из потока?
         }

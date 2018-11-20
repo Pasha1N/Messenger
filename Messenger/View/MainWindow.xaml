@@ -60,7 +60,7 @@
                 <ToolTipService.InitialShowDelay>55</ToolTipService.InitialShowDelay>
                 <TextBox.ToolTip>
 
-                    <ToolTip Visibility="{Binding Path= VisibilityOfServerNameError, Converter={StaticResource ResourceKey=booleanToVisibilityConverter}}"
+                    <ToolTip Visibility="{Binding Path= VisibilityOfUsernameError, Converter={StaticResource ResourceKey=booleanToVisibilityConverter}}"
                              Content="This name already exists" />
                 </TextBox.ToolTip>
             </TextBox>
