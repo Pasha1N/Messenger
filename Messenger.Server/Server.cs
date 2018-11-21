@@ -1,8 +1,10 @@
 ﻿using Messenger.Models;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading;
 using System.Threading.Tasks;
@@ -83,7 +85,7 @@ namespace Messenger.Server
                         {
                             users.Add(user);
                             clients.Add(user.IPAddress.ToString() + user.Port.ToString(), tcpClient);
-                            SendMesssage(user);
+                             SendMesssage<User>(user,1);
                             UpdateUserCollection(tcpClient, user);
 
                             {
@@ -106,10 +108,23 @@ namespace Messenger.Server
 
                             while (true)
                             {
-                                Message message = (Message)formatter.Deserialize(stream);//try 
-                                Console.Write($" User ({message.Sender.Username}) Send a message to");
-                                Console.WriteLine($"User ({message.Recipient.Username})");
-                                SendMesssage(message);
+                                Message message = null;
+                                try
+                                {
+                                    //disconnect
+
+                                    message = (Message)formatter.Deserialize(stream);//try 
+                                    Console.Write($" User ({message.Sender.Username}) Send a message to");
+                                    Console.WriteLine($"User ({message.Recipient.Username})");
+                               
+                                    SendMesssage<Message>(message,0);
+                                }
+                                catch (SerializationException)
+                                {
+                                }
+                                catch (IOException)
+                                {
+                                }
                             }
                         }
                     });
@@ -149,7 +164,7 @@ namespace Messenger.Server
             return enableCommandConnect;
         }
 
-        public void SendMesssage(Message message)
+        public void SendMesssage<T>(T @object, int codeMessage)
         {
             bool found = false;
 
@@ -168,72 +183,19 @@ namespace Messenger.Server
                 }
 
                 if (found)
-                {
+                {    //если user то код сообщения должен быть 1
+                    //если message то код сообщения должен быть 0
                     NetworkStream stream = tcpClient.GetStream();
                     byte[] bytes = new byte[4];
-                    bytes = BitConverter.GetBytes(0);
+                    bytes = BitConverter.GetBytes(codeMessage);
                     int code = BitConverter.ToInt32(bytes, 0);
                     stream.Write(bytes, 0, bytes.Length);
-                    formatter.Serialize(stream, message);
+                    formatter.Serialize(stream, @object);
                     stream.Flush();
                     break;
                 }
             }
         }
-
-        public void SendMesssage(User user) //нужно использовать обобщение
-        {
-            foreach (User item in users)
-            {
-                TcpClient tcpClient = null;
-
-                foreach (KeyValuePair<string, TcpClient> client in clients)
-                {
-                    if (client.Key == $"{item.IPAddress}{ item.Port}")
-                    {
-                        tcpClient = client.Value;
-                        break;
-                    }
-                }
-
-                if (tcpClient != null)
-                {
-                    NetworkStream stream = tcpClient.GetStream();
-
-                    byte[] bytes = new byte[4];
-                    bytes = BitConverter.GetBytes(1);
-                    int code = BitConverter.ToInt32(bytes, 0);
-                    stream.Write(bytes, 0, bytes.Length);
-                    formatter.Serialize(stream, user);
-                    stream.Flush();
-                }
-            }
-        }
-
-        //public void StopServer()
-        //{
-        //    Task.Factory.StartNew(() =>
-        //    {
-        //        Console.ForegroundColor = ConsoleColor.Red;
-        //        Console.WriteLine(" To close the server, click ( Escape )");
-        //        Console.ResetColor();
-
-        //        while (true)
-        //        {
-        //            ConsoleKeyInfo keyInfo = Console.ReadKey();
-
-        //            if (keyInfo.Key == ConsoleKey.Escape)
-        //            {
-        //                Console.ForegroundColor = ConsoleColor.Green;
-        //                listener.Stop();
-                       
-        //                listenerIsClose = true;
-        //                Console.WriteLine("Server Stopped");
-        //                Console.ResetColor();
-        //            }
-        //        }
-        //    });
-        //}
 
         public void UpdateUserCollection(TcpClient whoNeedsUpgrade, User endPoint)
         {
@@ -243,7 +205,6 @@ namespace Messenger.Server
             {
                 if ($"{user.IPAddress}{user.Port}" != $"{endPoint.IPAddress}{endPoint.Port}")
                 {
-
                     byte[] bytes = new byte[4];
                     bytes = BitConverter.GetBytes(1);
                     int s = BitConverter.ToInt32(bytes, 0);

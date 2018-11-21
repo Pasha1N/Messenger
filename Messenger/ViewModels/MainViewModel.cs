@@ -15,18 +15,19 @@ using System.Windows.Input;
 using Messenger.Client.Commands;
 using Messenger.Utilities;
 using Messenger.Models;
+using System.IO;
 
 namespace Messenger.Client.ViewModels
 {
     public class MainViewModel : EventINotifyPropertyChanged
     {
-        private static readonly EventWaitHandle serverStartedEvent = new EventWaitHandle(false, EventResetMode.ManualReset, "{94BF7448-1BF3-4A4A-A309-B328E02689FC}");
         private IPAddress myIpAddress;
         private IPAddress ipEndPoint = IPAddress.Loopback;
         private int endPointPort = 2020;
         private string myName;
         private Command commandConnect;
         private Command commandSend;
+        private Command commandDisconnect;
         private TcpClient tcpClient = null;
         private ICollection<User> users = new ObservableCollection<User>();
         private User selectedUser;
@@ -42,11 +43,15 @@ namespace Messenger.Client.ViewModels
         private bool enableCommandConnect = true;
         private bool visibilityOfUsernameError = false;
         private bool visibilityOfServerNameError = false;
+        private bool enableCommandDisconnect = false;
+        private bool haveIBeenDisconnected = true;
+        private object sync = new object();
 
         public MainViewModel()
         {
             commandConnect = new DelegateCommand(Connect, EnableCommandConnect);
-            commandSend = new DelegateCommand(SendMesssage);
+            commandSend = new DelegateCommand(SendMessage);
+            commandDisconnect = new DelegateCommand(Disconnect, EnableCommandDisconnect);
         }
 
         public string IPEndPoint
@@ -62,7 +67,7 @@ namespace Messenger.Client.ViewModels
                     OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs(nameof(IPEndPoint)));
                 }
             }
-        } //+
+        }
 
         public ICommand CommandConnect => commandConnect;//+
 
@@ -70,12 +75,19 @@ namespace Messenger.Client.ViewModels
 
         public IEnumerable<User> Users => users; //+
 
+        public ICommand CommandDisconnect => commandDisconnect;
+
         public IEnumerable<MessageViewModel> MessageViewModels => messageViewModels;
 
         public bool EnableUsernameField
         {
             get => enableUsernameField;
             set => SetProperty(ref enableUsernameField, value);
+        }
+
+        public bool EnableCommandDisconnect()
+        {
+            return enableCommandDisconnect;
         }
 
         public bool VisibilityOfUsernameError
@@ -132,48 +144,79 @@ namespace Messenger.Client.ViewModels
 
         public void Connect()
         {
-            Task.Factory.StartNew(() =>
+            lock (sync)
             {
-                tcpClient = new TcpClient();
-                tcpClient.Connect(ipEndPoint, endPointPort);
-                utilitiesEndPoint = utilitiesEndPoint.GetEndPoint(tcpClient.Client.LocalEndPoint.ToString());
-                myIpAddress = utilitiesEndPoint.IPAddress;
-                myPort = utilitiesEndPoint.Port;
-
-                I = new User(utilitiesEndPoint.IPAddress, MyName, utilitiesEndPoint.Port);
-                NetworkStream stream = tcpClient.GetStream();
-                formatter.Serialize(stream, I);
-                stream.Flush();
-                bool isConnected = false;
-                byte[] bytes = new byte[1];
-                stream.Read(bytes, 0, bytes.Length);
-                isConnected = BitConverter.ToBoolean(bytes, 0);
-
-                if (!isConnected)
+                Task.Factory.StartNew(() =>
                 {
-                    WaitForMessage();
+                    tcpClient = new TcpClient();
+                    tcpClient.Connect(ipEndPoint, endPointPort);
+                    utilitiesEndPoint = utilitiesEndPoint.GetEndPoint(tcpClient.Client.LocalEndPoint.ToString());
+                    myIpAddress = utilitiesEndPoint.IPAddress;
+                    myPort = utilitiesEndPoint.Port;
 
-                    enableCommandConnect = false;
-                    VisibilityOfUsernameError = false;
-                    Application.Current.Dispatcher.Invoke(() =>
+                    I = new User(myIpAddress, MyName, myPort);
+                    NetworkStream stream = tcpClient.GetStream();
+                    formatter.Serialize(stream, I);
+                    stream.Flush();
+                    bool isConnected = false;
+                    byte[] bytes = new byte[1];
+                    stream.Read(bytes, 0, bytes.Length);
+                    isConnected = BitConverter.ToBoolean(bytes, 0);
+
+                    if (!isConnected)
                     {
-                        commandConnect.OnCanExecuteChanged(EventArgs.Empty);
-                    });
-                }
-                else
-                {
-                    VisibilityOfUsernameError = true;
-                    tcpClient.Close();
-                }
-            });//при выходе выдет из потока?
+                        WaitForMessage();
+
+                        enableCommandConnect = false;
+                        VisibilityOfUsernameError = false;
+                        enableCommandDisconnect = true;
+                        haveIBeenDisconnected = false;
+
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            commandConnect.OnCanExecuteChanged(EventArgs.Empty);
+                            commandDisconnect.OnCanExecuteChanged(EventArgs.Empty);
+                        });
+                    }
+                    else
+                    {
+                        VisibilityOfUsernameError = true;
+                        tcpClient.Close();
+                    }
+                });
+            }
+
+            lock (sync)
+            {
+                NetworkStream dataToDisable = tcpClient.GetStream(); // why here null
+
+                //while (true)
+                //{
+                //    byte[] bytes = new byte[1];
+                //    dataToDisable.Read(bytes, 0, bytes.Length);
+                //    bool isDisconnected = BitConverter.ToBoolean(bytes,0);
+                //    if (isDisconnected)
+                //    {
+                //        break;
+                //    }
+                //}
+            }
         }
 
         public void Disconnect()
         {
-      //      tcpClient.
+            tcpClient.Close();
+
+
+
+            enableCommandDisconnect = false;
+            enableCommandConnect = true;
+            haveIBeenDisconnected = true;
+            commandDisconnect.OnCanExecuteChanged(EventArgs.Empty);
+            commandConnect.OnCanExecuteChanged(EventArgs.Empty);
         }
 
-        public void SendMesssage() //+
+        public void SendMessage() //+
         {
             User sender = new User(myIpAddress, MyName, myPort);
             User receiver = new User(SelectedUser.IPAddress, SelectedUser.Username, SelectedUser.Port);
@@ -193,17 +236,32 @@ namespace Messenger.Client.ViewModels
             return enableCommandConnect;
         }
 
+
         public void WaitForMessage()
         {
             Task.Factory.StartNew(wait =>
             {
                 while (true)
                 {
+
                     NetworkStream stream = tcpClient.GetStream();
                     int key = 0;
                     byte[] bytes = new byte[4];
-                    stream.Read(bytes, 0, bytes.Length);
+
+                    try
+                    {
+                        stream.Read(bytes, 0, bytes.Length);
+                    }
+                    catch (IOException)
+                    {
+                    }
+
                     key = BitConverter.ToInt32(bytes, 0);
+
+                    //if (!haveIBeenDisconnected)
+                    //{
+                    //    break;
+                    //}
 
                     if (key == 0)
                     {
@@ -228,7 +286,6 @@ namespace Messenger.Client.ViewModels
                                 users.Add(user);
                             });
                         }
-
                     }
                 }
             }, null, TaskCreationOptions.LongRunning);

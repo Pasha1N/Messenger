@@ -66,7 +66,7 @@
             </TextBox>
             <Border Grid.Row="3" BorderThickness="2" BorderBrush="Red" Visibility="{Binding Path= VisibilityOfUsernameError, Converter={StaticResource ResourceKey=booleanToVisibilityConverter}}"/>
             <Button Command="{Binding Path=CommandConnect}" Grid.Row="4" Margin="0,5,0,3" Content="Connect" />
-            <Button Grid.Row="5" Margin="0,2,0,5"  Content="Disconnect" />
+            <Button Command="{Binding Path=CommandDisconnect}" Grid.Row="5" Margin="0,2,0,5"  Content="Disconnect" />
             <ListBox Grid.Row="6" ItemsSource="{Binding Path=Users}" SelectedItem="{Binding Path=SelectedUser}"/>
             </Grid>
 
